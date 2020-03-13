@@ -16,6 +16,21 @@ from copy import deepcopy
 # cap.release()
 # cv2.destroyAllWindows()
 
+# def rect_contains(rect, point) :
+# 	if point[0] < rect[0] :
+# 	    return False
+
+# 	elif point[1] < rect[1] :
+# 	    return False
+
+# 	elif point[0] > rect[2] :
+# 	    return False
+
+# 	elif point[1] > rect[3] :
+# 	    return False
+
+# 	return True
+
 
 def shape_to_np(shape, dtype="int"):
 	coords = np.zeros((68, 2), dtype=dtype)
@@ -24,30 +39,37 @@ def shape_to_np(shape, dtype="int"):
 
 	return coords
 
-def main():
-	image = cv2.imread('../kang0.jpg')
-	print(image.shape)
+def draw_delaunay(img, subdiv) :
+	triangleList = subdiv.getTriangleList();
+	# size = img.shape
+
+	# r = (0, 0, size[1], size[0])
+
+	for t in triangleList :
+
+		pt1 = (t[0], t[1])
+
+		pt2 = (t[2], t[3])
+
+		pt3 = (t[4], t[5])
+		 
+
+	# if rect_contains(r, pt1) and rect_contains(r, pt2) and rect_contains(r, pt3) :
+		cv2.line(img, pt1, pt2, (255, 255, 255), 1)
+		cv2.line(img, pt2, pt3, (255, 255, 255), 1)
+		cv2.line(img, pt3, pt1, (255, 255, 255), 1)
+
+def face(image):
+
 	img = deepcopy(image)
-	print(img.shape)
+	
 
-	scale_percent = 60 # percent of original size
-	width = int(img.shape[1] * scale_percent / 100)
-	height = int(img.shape[0] * scale_percent / 100)
-	dim = (width, height)
-	# resize image
-	resized = cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
+	gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+	print("gray shape",gray.shape)
 
-	# cv2.imshow("image", img)
+	# cv2.imshow("gray", gray)
 	# if cv2.waitKey(0) & 0xff == 27:
 	# 	cv2.destroyAllWindows()
-
-	gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
-	print(gray.shape)
-
-	cv2.imshow("gray", gray)
-	if cv2.waitKey(0) & 0xff == 27:
-		cv2.destroyAllWindows()
-
 
 	detector = dlib.get_frontal_face_detector()
 	print(detector)
@@ -57,36 +79,68 @@ def main():
 	rects = detector(gray, 1)
 	print(rects)
 
+
+
 	for (i, rect) in enumerate(rects):
-		cv2.rectangle(resized, (rect.left(), rect.top()),  (rect.right(), rect.bottom()), (0, 255, 0), 2)
+		# cv2.rectangle(resized, (rect.left(), rect.top()),  (rect.right(), rect.bottom()), (0, 255, 0), 2)
 
 		shape = predictor(gray, rect)
 		print(shape)
 		shape = shape_to_np(shape)
 		print(len(shape))
 
+		subdiv = cv2.Subdiv2D((0,0,gray.shape[1],gray.shape[0]))
 		for (x, y) in shape:
-			cv2.circle(resized, (x, y), 1, (0, 0, 255), 2)
+			cv2.circle(img, (x, y), 1, (0, 0, 255), 2)
+			subdiv.insert((x,y))
 
-		# (x, y, w, h) = rect_to_bb(rect)
-		# print("x", x)
-		# print("y", y)
-		# print("w", w)
-		# print("h", h)
-		
+		draw_delaunay(img, subdiv)
 
-		cv2.imshow("face features", resized)
-		if cv2.waitKey(0) & 0xff == 27:
-			cv2.destroyAllWindows()
+	return img
 
-		# # show the face number
-		# cv2.putText(image, "Face #{}".format(i + 1), (x - 10, y - 10),
-		# 	cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
-		# # loop over the (x, y)-coordinates for the facial landmarks
-		# # and draw them on the image
-		# for (x, y) in shape:
-		# 	cv2.circle(image, (x, y), 1, (0, 0, 255), -1)
+def main():
+
+	dst = cv2.imread('../kang0.jpg')
+	print("dst shape",dst.shape)
+
+	scale_percent = 60 # percent of original size
+	width = int(dst.shape[1] * scale_percent / 100)
+	height = int(dst.shape[0] * scale_percent / 100)
+	dim = (width, height)
+	# resize image
+	dst = cv2.resize(dst, dim, interpolation = cv2.INTER_AREA)
+	print("dst resized shape", dst.shape)
+	dst_res = face(dst)
+
+	src = cv2.imread('../ja.jpg')
+	print("src shape",src.shape)
+
+	src = cv2.resize(src, dim, interpolation = cv2.INTER_AREA)
+	print("src resized shape", src.shape)
+	src_res = face(src)
+
+
+
+	cv2.imshow("Destination", dst)
+	if cv2.waitKey(0) & 0xff == 27:
+		cv2.destroyAllWindows()
+
+	cv2.imshow("Source", src)
+	if cv2.waitKey(0) & 0xff == 27:
+		cv2.destroyAllWindows()
+
+
+	cv2.imshow("Destination Image", dst_res)
+	if cv2.waitKey(0) & 0xff == 27:
+		cv2.destroyAllWindows()
+
+	cv2.imshow("Source Image", src_res)
+	if cv2.waitKey(0) & 0xff == 27:
+		cv2.destroyAllWindows()
+
+
+
 
 # show the output image with the face detections + facial landmarks
 
