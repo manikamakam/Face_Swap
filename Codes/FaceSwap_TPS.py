@@ -13,26 +13,6 @@ def shape_to_np(shape, dtype="int"):
 
 	return coords
 
-def draw_delaunay(img, subdiv) :
-	triangleList = subdiv.getTriangleList();
-	# size = img.shape
-
-	# r = (0, 0, size[1], size[0])
-
-	for t in triangleList :
-
-		pt1 = (t[0], t[1])
-
-		pt2 = (t[2], t[3])
-
-		pt3 = (t[4], t[5])
-		 
-
-	# if rect_contains(r, pt1) and rect_contains(r, pt2) and rect_contains(r, pt3) :
-		cv2.line(img, pt1, pt2, (255, 255, 255), 1)
-		cv2.line(img, pt2, pt3, (255, 255, 255), 1)
-		cv2.line(img, pt3, pt1, (255, 255, 255), 1)
-
 def face(img):
 
 	# convert to grayscale
@@ -73,8 +53,6 @@ def getTPScoff(P, X, Y):
 
 	I = np.identity(len(P) + 3)
 
-	# print(X)
-	# print(Y)
 	lam = 0.00000000001
 
 	temp2 = temp + lam*I
@@ -84,13 +62,13 @@ def getTPScoff(P, X, Y):
 	return x_const, y_const
 
 
-def swap(x_const, y_const, P, src, dst, dst_copy, mask_b, x_min, x_max, y_min, y_max):
+def swap(x_const, y_const, P, src, dst, dst_copy, mask):
 
-	random = np.zeros_like(dst)
-	for i in range(dst.shape[0]):
-		for j in range(dst.shape[1]):
-			if (mask_b[i][j] == 255):
-				random[i][j] = dst[i][j]
+	# random = np.zeros_like(dst)
+	# for i in range(dst.shape[0]):
+	# 	for j in range(dst.shape[1]):
+	# 		if (mask[i][j] == 255):
+	# 			random[i][j] = dst[i][j]
 
 	# cv2.imshow("Destination", random)
 	# if cv2.waitKey(0) & 0xff == 27:
@@ -104,11 +82,9 @@ def swap(x_const, y_const, P, src, dst, dst_copy, mask_b, x_min, x_max, y_min, y
 	green = interpolate.interp2d(range(src.shape[1]), range(src.shape[0]), g, kind='cubic')
 	red = interpolate.interp2d(range(src.shape[1]), range(src.shape[0]), r, kind='cubic')
 			
-
-
 	for xi in range(dst.shape[1]):
 		for yi in range(dst.shape[0]):
-			if (mask_b[yi][xi] == 255):
+			if (mask[yi][xi] == 255):
 				l = len(x_const)
 				s_x = 0
 				s_y = 0
@@ -118,90 +94,76 @@ def swap(x_const, y_const, P, src, dst, dst_copy, mask_b, x_min, x_max, y_min, y
 					s_x = s_x + x_const[j]*u
 					s_y = s_y + y_const[j]*u
 
-				# print(s_x)
-				# print(s_y)
-
+				# (x, y) coordinates of src image
 				x_new = x_const[l-1] + x_const[l-3]*xi + x_const[l-2]*yi + s_x
 				y_new = y_const[l-1] + y_const[l-3]*xi + y_const[l-2]*yi + s_y
 
+				# replace pixels in dst_copy with interpolated values
 				dst_copy[yi][xi][0] = blue(x_new, y_new) 
 	 			dst_copy[yi][xi][1] = green(x_new, y_new) 
 	 			dst_copy[yi][xi][2] = red(x_new, y_new)
 
-				# print(x_new, y_new)
-
-				# cv2.circle(src, (int(x_new), int(y_new)), 1, (255, 0, 0), 2)
-
-	r = cv2.boundingRect(mask_b)
+	r = cv2.boundingRect(mask)
 	center = ((r[0] + int(r[2] / 2), r[1] + int(r[3] / 2)))
-	output = cv2.seamlessClone(dst_copy, dst, mask_b, center, cv2.NORMAL_CLONE)
+	output = cv2.seamlessClone(dst_copy, dst, mask, center, cv2.NORMAL_CLONE)
 
 	return output
 
 def faceSwap(src, dst):
 	dst_pts = face(dst)
-
-	return output
-
-
-def main():
-
-	dst = cv2.imread('../a2.jpg')
-	dst_copy = deepcopy(dst)
-	scale_percent = 60 # percent of original size
-	width1 = int(dst.shape[1] * scale_percent / 100)
-	height1 = int(dst.shape[0] * scale_percent / 100)
-	dim1 = (width1, height1)
-	dst = cv2.resize(dst, dim1, interpolation = cv2.INTER_AREA)
-	dst_pts = face(dst)
-
-	src = cv2.imread('../sg1.jpg')
-	scale_percent = 60 # percent of original size
-	width2 = int(src.shape[1] * scale_percent / 100)
-	height2 = int(src.shape[0] * scale_percent / 100)
-	dim2 = (width2, height2)
-	# dst = cv2.resize(dst, dim, interpolation = cv2.INTER_AREA)
-	src = cv2.resize(src, dim2, interpolation = cv2.INTER_AREA)
 	src_pts = face(src)
+	dst_copy = deepcopy(dst)
 
+	# generate mask
 	hullPoints = cv2.convexHull(dst_pts, returnPoints = True)
+	m = np.zeros_like(dst)
+	cv2.fillConvexPoly(m, hullPoints, (255,255,255))
+	mask = m[:, :, 0]
 
-	# print(hullIndex)
-
-	mask = np.zeros_like(dst)
-	cv2.fillConvexPoly(mask, hullPoints, (255,255,255))
-	mask_b = mask[:, :, 0]
-	# _, mask_b = cv2.threshold(mask, 127, 255, cv2.THRESH_BINARY)
-
-	# print(mask_b.shape)
-
-	# cv2.imshow("Mask", mask_b)
-	# if cv2.waitKey(0) & 0xff == 27:
-	# 	cv2.destroyAllWindows()
-
-
-
+	# generate P matrix
 	P = []
 	for (x, y) in dst_pts:
-		# print(x, y)
 		P.append([x, y, 1])
+	P = np.asarray(P)
 
+	# generate X Y matrix
 	X = np.zeros(len(P)+3)
 	Y = np.zeros(len(P)+3)
 	for i in range(len(src_pts)):
 		X[i] = src_pts[i][0]
 		Y[i] = src_pts[i][1]
 
-	x_max = int(np.amax(X[0:-3]))
-	x_min = int(np.amin(X[0:-3]))
-	y_max = int(np.amax(Y[0:-3]))
-	y_min = int(np.amin(Y[0:-3]))
-
-	P = np.asarray(P)
-
+	# parameters for the thin plate spines
 	x_const, y_const = getTPScoff(P, X, Y)
 
-	output = swap(x_const, y_const, P, src, dst, dst_copy, mask_b, x_min, x_max, y_min, y_max)	
+	# swap faces
+	output = swap(x_const, y_const, P, src, dst, dst_copy, mask)	
+
+	return output
+
+
+def main():
+
+	# load source image
+	src = cv2.imread('../sg1.jpg')
+	# resize src
+	scale_percent = 60 
+	width1 = int(src.shape[1] * scale_percent / 100)
+	height1 = int(src.shape[0] * scale_percent / 100)
+	dim1 = (width1, height1)
+	src = cv2.resize(src, dim1, interpolation = cv2.INTER_AREA)
+
+	# load destination image
+	dst = cv2.imread('../a2.jpg')
+	# resize dst
+	scale_percent = 60 # percent of original size
+	width2 = int(dst.shape[1] * scale_percent / 100)
+	height2 = int(dst.shape[0] * scale_percent / 100)
+	dim2 = (width2, height2)
+	dst = cv2.resize(dst, dim2, interpolation = cv2.INTER_AREA)
+
+	# Swap faces
+	output = faceSwap(src, dst)
 
 	cv2.imshow("Destination", output)
 	if cv2.waitKey(0) & 0xff == 27:
