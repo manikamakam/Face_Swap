@@ -128,6 +128,7 @@ def triangulation_dst(img):
 			# 	break
 			cv2.circle(img, (x, y), 1, (0, 0, 255), 2)
 			subdiv.insert((x,y))
+
 			# c=c+1
 
 		triangleList = subdiv.getTriangleList();
@@ -177,11 +178,11 @@ def triangulation_dst(img):
 	# print(triangles)		
 	print("updated",len(triangles))
 	
-	return img, triangles, r, indices
+	return img, triangles, r, indices, shape
 
 def main():
 
-	dst_image = cv2.imread('../kang0.jpg')
+	dst_image = cv2.imread('../m2.jpeg')
 	# print("dst shape",dst_image.shape)
 
 	scale_percent = 60 # percent of original size
@@ -189,16 +190,21 @@ def main():
 	height = int(dst_image.shape[0] * scale_percent / 100)
 	dim = (width, height)
 	
-	dst_image = cv2.resize(dst_image, dim, interpolation = cv2.INTER_AREA)
+	dst_image = cv2.resize(dst_image, dim, interpolation = cv2.INTER_AREA)         #resized
 	dst = deepcopy(dst_image)
 	# print(dst.shape)
-	dst, tri_dst, box_dst,indices =  triangulation_dst(dst)
-	dst_res = deepcopy(dst_image)
+	dst, tri_dst, box_dst,indices,dst_pts =  triangulation_dst(dst)                       #triangulation
+	dst_copy = deepcopy(dst_image)                                                                 
 	# print(dst_res.shape)
 	# print(tri_dst[0])
 	# print(indices)
 	src_image = cv2.imread('../ja.jpg')
-	src_image = cv2.resize(src_image, dim, interpolation = cv2.INTER_AREA)
+	scale_percent2 = 60 # percent of original size
+	width2 = int(src_image.shape[1] * scale_percent2 / 100)
+	height2 = int(src_image.shape[0] * scale_percent2 / 100)
+	dim2 = (width2, height2)
+
+	src_image = cv2.resize(src_image, dim2, interpolation = cv2.INTER_AREA)
 	src = deepcopy(src_image)
 	# print(src.shape)
 	src, tri_src, box_src =  triangulation_src(src,indices)
@@ -206,106 +212,105 @@ def main():
 	# print(tri_src[0])
 	# print(box_dst)
 	# print(box_src)
+	hullPoints = cv2.convexHull(dst_pts, returnPoints = True)
+	mask = np.zeros_like(dst_image)
+	cv2.fillConvexPoly(mask, hullPoints, (255,255,255))
+	mask_b = mask[:, :, 0]
 	for t in range(len(tri_dst)) :
-		if rect_contains(box_dst, (tri_dst[t][0], tri_dst[t][1])) and rect_contains(box_dst, (tri_dst[t][2], tri_dst[t][3])) and rect_contains(box_dst, (tri_dst[t][4], tri_dst[t][5])) and rect_contains(box_src, (tri_src[t][0], tri_src[t][1])) and rect_contains(box_src, (tri_src[t][2], tri_src[t][3])) and rect_contains(box_src, (tri_src[t][4], tri_src[t][5])):
-			# print("triangles ",tri_dst[t])
-			pt1_dst = (tri_dst[t][0], tri_dst[t][1])
-			pt2_dst = (tri_dst[t][2], tri_dst[t][3])
-			pt3_dst = (tri_dst[t][4], tri_dst[t][5])
-			# cv2.circle(dst_res, pt3_dst, 10, (0, 0, 255), 2)	
-			# cv2.imshow("Destination", dst_res)
-			# if cv2.waitKey(0) & 0xff == 27:
-			# 	cv2.destroyAllWindows()
+		# if rect_contains(box_dst, (tri_dst[t][0], tri_dst[t][1])) and rect_contains(box_dst, (tri_dst[t][2], tri_dst[t][3])) and rect_contains(box_dst, (tri_dst[t][4], tri_dst[t][5])) and rect_contains(box_src, (tri_src[t][0], tri_src[t][1])) and rect_contains(box_src, (tri_src[t][2], tri_src[t][3])) and rect_contains(box_src, (tri_src[t][4], tri_src[t][5])):
+		# print("triangles ",tri_dst[t])
+		pt1_dst = (tri_dst[t][0], tri_dst[t][1])
+		pt2_dst = (tri_dst[t][2], tri_dst[t][3])
+		pt3_dst = (tri_dst[t][4], tri_dst[t][5])
+		# cv2.circle(dst_res, pt3_dst, 10, (0, 0, 255), 2)	
+		# cv2.imshow("Destination", dst_res)
+		# if cv2.waitKey(0) & 0xff == 27:
+		# 	cv2.destroyAllWindows()
 
-			# print(pt1_dst)
-			pt1_src = (tri_src[t][0], tri_src[t][1])
-			pt2_src = (tri_src[t][2], tri_src[t][3])
-			pt3_src = (tri_src[t][4], tri_src[t][5])
-			# print(pt1_src)
-			bary_dst = np.linalg.inv([[pt1_dst[0], pt2_dst[0], pt3_dst[0]], [pt1_dst[1], pt2_dst[1], pt3_dst[1]], [1,1,1]])
-			# print(bary_dst)
-			bary_src = [[pt1_src[0], pt2_src[0], pt3_src[0]], [pt1_src[1], pt2_src[1], pt3_src[1]], [1,1,1]]
+		# print(pt1_dst)
+		pt1_src = (tri_src[t][0], tri_src[t][1])
+		pt2_src = (tri_src[t][2], tri_src[t][3])
+		pt3_src = (tri_src[t][4], tri_src[t][5])
+		# print(pt1_src)
+		bary_dst = np.linalg.inv([[pt1_dst[0], pt2_dst[0], pt3_dst[0]], [pt1_dst[1], pt2_dst[1], pt3_dst[1]], [1,1,1]])
+		# print(bary_dst)
+		bary_src = [[pt1_src[0], pt2_src[0], pt3_src[0]], [pt1_src[1], pt2_src[1], pt3_src[1]], [1,1,1]]
 
-			# Bounding box of the triangle
-			xleft = min(pt1_dst[0], pt2_dst[0], pt3_dst[0])
-			xright = max(pt1_dst[0], pt2_dst[0], pt3_dst[0])
-			ytop = min(pt1_dst[1], pt2_dst[1], pt3_dst[1])
-			ybottom = max(pt1_dst[1], pt2_dst[1], pt3_dst[1])
-			x_src = []
-			y_src = []
-			x_dst=[]
-			y_dst=[]
-			# if(xleft<bounding_dst[0]):
-			# 	xleft=bounding_dst[0]
-			# if(xright>bounding_dst[2]):
-			# 	xright=bounding_dst[2]
-			# if(ytop<bounding_dst[1]):
-			# 	ytop=bounding_dst[1]
-			# if(ybottom>bounding_dst[3]):
-			# 	ybottom =bounding_dst[3]
-			# print(ytop)
-			# print(ybottom)
-			# print(xleft)
-			# print(xright)
+		# Bounding box of the triangle
+		xleft = min(pt1_dst[0], pt2_dst[0], pt3_dst[0])
+		xright = max(pt1_dst[0], pt2_dst[0], pt3_dst[0])
+		ytop = min(pt1_dst[1], pt2_dst[1], pt3_dst[1])
+		ybottom = max(pt1_dst[1], pt2_dst[1], pt3_dst[1])
+		x_src = []
+		y_src = []
+		x_dst=[]
+		y_dst=[]
+		# if(xleft<bounding_dst[0]):
+		# 	xleft=bounding_dst[0]
+		# if(xright>bounding_dst[2]):
+		# 	xright=bounding_dst[2]
+		# if(ytop<bounding_dst[1]):
+		# 	ytop=bounding_dst[1]
+		# if(ybottom>bounding_dst[3]):
+		# 	ybottom =bounding_dst[3]
+		# print(ytop)
+		# print(ybottom)
+		# print(xleft)
+		# print(xright)
 
-			for x in range(int(xleft), int(xright)):
-				for y in range(int(ytop), int(ybottom)):
-					p = np.array([[x], [y], [1]])
-					# print("destination point", p)
-					bary_coords = np.dot(bary_dst, p)
-					# print(bary_coords)
-					alpha = bary_coords[0]
-					beta = bary_coords[1]
-					gamma = bary_coords[2]
-					if alpha<=1 and beta<=1 and gamma<=1 and alpha>=0 and beta>=0 and gamma>=0: #and alpha+beta+gamma<=1 and alpha+beta+gamma>0:
-						# print("insideeeeeeeeeeeeee")
-						point = np.dot(bary_src, bary_coords)
-						# print(point[0])
-						x_dst.append(x)
-						y_dst.append(y)
-						x_src.append(point[0][0]/point[2][0])
-						y_src.append(point[1][0]/point[2][0])
-						# print("src_point", points_src)
-			# print(len(x_src))
-			# print(len(y_src))
-			# print(x_dst)
-			# print(y_dst)
-			x_values = np.linspace(0,src_image.shape[1], src_image.shape[1],endpoint = False)
-			# print(x_values)
-			y_values = np.linspace(0,src_image.shape[0],src_image.shape[0], endpoint = False)
-			# nx, ny = src_image.shape[1], src_image.shape[0]
-			# x_values, y_values = np.meshgrid(np.arange(box_src[0], box_src[2], 1), np.arange(box_src[1], box_src[3], 1))
-			# crop_src = src_image[box_src[0]:box_src[2], box_src[1]: box_src[3]]
-			
-			b = src_image[:,:,0]
-			g = src_image[:,:,1]
-			r = src_image[:,:,2]
-			# print(b)
-			blue = interpolate.interp2d(x_values, y_values, b, kind='cubic')
-			green = interpolate.interp2d(x_values, y_values, g, kind='cubic')
-			red = interpolate.interp2d(x_values, y_values, r, kind='cubic')
-			# bnew= blue(x_src,y_src)
-			# print(blue)
-			# gne=[]
-			# rnew =[]
-			# print(blue(x_src[0], y_src[0]))
-			# print(y_dst)
-			for i in range(len(x_src)):
-				bnew = blue(x_src[i], y_src[i]) 
-				gnew= green(x_src[i], y_src[i]) 
-				rnew = red(x_src[i], y_src[i])
-				dst_res[y_dst[i],x_dst[i]] = (bnew,gnew,rnew)
-			dst_res[50,10] = (0,0,0)
-
-
-			
-			# plt.plot(x_values, blue[0, :], 'b-')
-			# plt.show()
+		for x in range(int(xleft), int(xright)):
+			for y in range(int(ytop), int(ybottom)):
+				p = np.array([[x], [y], [1]])
+				# print("destination point", p)
+				bary_coords = np.dot(bary_dst, p)
+				# print(bary_coords)
+				alpha = bary_coords[0]
+				beta = bary_coords[1]
+				gamma = bary_coords[2]
+				if alpha<=1 and beta<=1 and gamma<=1 and alpha>=0 and beta>=0 and gamma>=0: #and alpha+beta+gamma<=1 and alpha+beta+gamma>0:
+					# print("insideeeeeeeeeeeeee")
+					point = np.dot(bary_src, bary_coords)
+					# print(point[0])
+					x_dst.append(x)
+					y_dst.append(y)
+					x_src.append(point[0][0]/point[2][0])
+					y_src.append(point[1][0]/point[2][0])
+					# print("src_point", points_src)
+		# print(len(x_src))
+		# print(len(y_src))
+		# print(x_dst)
+		# print(y_dst)
+		x_values = np.linspace(0,src_image.shape[1], src_image.shape[1],endpoint = False)
+		# print(x_values)
+		y_values = np.linspace(0,src_image.shape[0],src_image.shape[0], endpoint = False)
+		# nx, ny = src_image.shape[1], src_image.shape[0]
+		# x_values, y_values = np.meshgrid(np.arange(box_src[0], box_src[2], 1), np.arange(box_src[1], box_src[3], 1))
+		# crop_src = src_image[box_src[0]:box_src[2], box_src[1]: box_src[3]]
+		
+		b = src_image[:,:,0]
+		g = src_image[:,:,1]
+		r = src_image[:,:,2]
+		# print(b)
+		blue = interpolate.interp2d(x_values, y_values, b, kind='cubic')
+		green = interpolate.interp2d(x_values, y_values, g, kind='cubic')
+		red = interpolate.interp2d(x_values, y_values, r, kind='cubic')
+		# bnew= blue(x_src,y_src)
+		# print(blue)
+		# gne=[]
+		# rnew =[]
+		# print(blue(x_src[0], y_src[0]))
+		# print(y_dst)
+		for i in range(len(x_src)):
+			bnew = blue(x_src[i], y_src[i]) 
+			gnew= green(x_src[i], y_src[i]) 
+			rnew = red(x_src[i], y_src[i])
+			dst_copy[y_dst[i],x_dst[i]] = (bnew,gnew,rnew)
 
 
+		br = cv2.boundingRect(mask_b)
+		center = ((br[0] + int(br[2] / 2), br[1] + int(br[3] / 2)))
+		output = cv2.seamlessClone(dst_copy, dst_image, mask_b, center, cv2.NORMAL_CLONE)
 
-						# z = np.sin(xx**2+yy**2)
-						# f = interpolate.interp2d(x, y, z, kind='cubic')
 
 
 
@@ -315,20 +320,29 @@ def main():
 
 			# barycoords = np.dot(barytransform, grid)
 			# barycoords = barycoords[:,np.all(barycoords>=0, axis=0)]
-
-
-	cv2.imshow("Destination triangles", dst)
+	cv2.imshow("dst_image", dst_image)
 	if cv2.waitKey(0) & 0xff == 27:
 		cv2.destroyAllWindows()
+
+	cv2.imshow("dst_copy", dst_copy)
+	if cv2.waitKey(0) & 0xff == 27:
+		cv2.destroyAllWindows()
+	cv2.imshow("dst", dst)
+	if cv2.waitKey(0) & 0xff == 27:
+		cv2.destroyAllWindows()
+
+	cv2.imshow("output", output)
+	if cv2.waitKey(0) & 0xff == 27:
+		cv2.destroyAllWindows()
+
+	cv2.imshow("src_image", src_image)
+	if cv2.waitKey(0) & 0xff == 27:
+		cv2.destroyAllWindows()
+
 
 	cv2.imshow("Source triangles", src)
 	if cv2.waitKey(0) & 0xff == 27:
 		cv2.destroyAllWindows()
-		
-	cv2.imshow("Destination", dst_res)
-	if cv2.waitKey(0) & 0xff == 27:
-		cv2.destroyAllWindows()
-
 
 
 
