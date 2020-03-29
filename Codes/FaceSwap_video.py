@@ -120,8 +120,9 @@ def main():
 
 	while (True):
 		ret, frame = cap.read()
+		c=0 
 		if ret == True:
-
+			c= c+1
 			scale_percent = 60 # percent of original size
 			width = int(frame.shape[1] * scale_percent / 100)
 			height = int(frame.shape[0] * scale_percent / 100)
@@ -135,7 +136,7 @@ def main():
 			predictor = dlib.shape_predictor('../shape_predictor_68_face_landmarks.dat')
 			rects = detector(dst, 1)
 			if len(rects) > 0:	
-
+				
 				dst, tri_dst, box_dst,indices,dst_pts =  triangulation_dst(dst,rects,predictor) 
 				
 				dst_copy = deepcopy(dst_image)                                                                 
@@ -155,6 +156,10 @@ def main():
 				cv2.fillConvexPoly(mask, hullPoints, (255,255,255))
 				mask_b = mask[:, :, 0]
 
+				x_src = []
+				y_src = []
+				x_dst=[]
+				y_dst=[]
 				for t in range(len(tri_dst)) :
 					pt1_dst = (tri_dst[t][0], tri_dst[t][1])
 					pt2_dst = (tri_dst[t][2], tri_dst[t][3])
@@ -172,10 +177,7 @@ def main():
 					xright = max(pt1_dst[0], pt2_dst[0], pt3_dst[0])
 					ytop = min(pt1_dst[1], pt2_dst[1], pt3_dst[1])
 					ybottom = max(pt1_dst[1], pt2_dst[1], pt3_dst[1])
-					x_src = []
-					y_src = []
-					x_dst=[]
-					y_dst=[]
+
 
 					for x in range(xleft, xright):
 						for y in range(ytop, ybottom):
@@ -193,39 +195,46 @@ def main():
 								y_dst.append(y)
 								x_src.append(point[0][0]/point[2][0])
 								y_src.append(point[1][0]/point[2][0])
-					# print(len(x_src))
-					# print(len(y_src))
-					# print(len(x_dst))
-					# print(len(y_dst))
-					x_values = np.linspace(0,src_image.shape[1], src_image.shape[1],endpoint = False)
+				# print(len(x_src))
+				# print(len(y_src))
+				# print(len(x_dst))
+				# print(len(y_dst))
+				x_values = np.linspace(0,src_image.shape[1], src_image.shape[1],endpoint = False)
 
-					y_values = np.linspace(0,src_image.shape[0],src_image.shape[0], endpoint = False)
+				y_values = np.linspace(0,src_image.shape[0],src_image.shape[0], endpoint = False)
 
-					b = src_image[:,:,0]
-					g = src_image[:,:,1]
-					r = src_image[:,:,2]
+				b = src_image[:,:,0]
+				g = src_image[:,:,1]
+				r = src_image[:,:,2]
 
-					blue = interpolate.interp2d(x_values, y_values, b, kind='cubic')
-					green = interpolate.interp2d(x_values, y_values, g, kind='cubic')
-					red = interpolate.interp2d(x_values, y_values, r, kind='cubic')
+				blue = interpolate.interp2d(x_values, y_values, b, kind='cubic')
+				green = interpolate.interp2d(x_values, y_values, g, kind='cubic')
+				red = interpolate.interp2d(x_values, y_values, r, kind='cubic')
 
-					for i in range(len(x_src)):
-						bnew = blue(x_src[i], y_src[i]) 
-						gnew= green(x_src[i], y_src[i]) 
-						rnew = red(x_src[i], y_src[i])
-						dst_copy[y_dst[i],x_dst[i]] = (bnew,gnew,rnew)
+				for i in range(len(x_src)):
+					bnew = blue(x_src[i], y_src[i]) 
+					gnew= green(x_src[i], y_src[i]) 
+					rnew = red(x_src[i], y_src[i])
+					dst_copy[y_dst[i],x_dst[i]] = (bnew,gnew,rnew)
 
 
-					br = cv2.boundingRect(mask_b)
-					center = ((br[0] + int(br[2] / 2), br[1] + int(br[3] / 2)))
-					output = cv2.seamlessClone(dst_copy, dst_image, mask_b, center, cv2.NORMAL_CLONE)
-					# cv2.imshow("output", dst_copy)
-					# if cv2.waitKey(0) & 0xff == 27:
-					# 	cv2.destroyAllWindows()
-					img_array.append(output)
+				br = cv2.boundingRect(mask_b)
+				center = ((br[0] + int(br[2] / 2), br[1] + int(br[3] / 2)))
+				output = cv2.seamlessClone(dst_copy, dst_image, mask_b, center, cv2.NORMAL_CLONE)
+				# cv2.imshow("output", dst_copy)
+				# if cv2.waitKey(0) & 0xff == 27:
+				# 	cv2.destroyAllWindows()
+				img_array.append(output)
+
+			# if c==1:
+			# 	cv2.imshow("output", output)
+			# 	if cv2.waitKey(0) & 0xff == 27:
+			# 		cv2.destroyAllWindows()
+			# 	break
+
 		else:
 			break
-
+	print(len(img_array))		
 	for i in range(len(img_array)):
 		out.write(img_array[i])
 	out.release()
