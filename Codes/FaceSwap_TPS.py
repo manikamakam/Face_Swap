@@ -181,9 +181,6 @@ def faceSwap(src, dst, kalman, found, initialized_once):
 
 	mes = []
 	if dst_flag:
-		if initialized_once == False:
-			initialized_once = True
-		
 		for pt in dst_pts:
 			mes.append(pt[0])
 			mes.append(pt[1])
@@ -192,13 +189,21 @@ def faceSwap(src, dst, kalman, found, initialized_once):
 		mes = np.resize(mes, (136,1))
 		# print(mes.shape)
 
-		kalman.correct(mes)
+		if initialized_once == False:
+			initialized_once = True
+			state[0:136] = mes
+			state[136:272] = np.reshape(np.asarray([0] * 136), (136,1))
+			kalman.statePost = state
+
+		else:
+			kalman.correct(mes)
 
 	else:
 		kalman.statePost = state
 
 		if initialized_once == False:
-			dst_pts = np.asarray([[0] * 2] * 68)
+			return dst, True, dst_flag, False
+			# dst_pts = np.asarray([[0] * 2] * 68)
 
 	for i in range(len(dst_pts)):
 		dst_pts[i][0] = state[2*i]
@@ -231,7 +236,7 @@ def faceSwap(src, dst, kalman, found, initialized_once):
 	# swap faces
 	output = swap(x_const, y_const, P, src, dst, dst_copy, mask)	
 
-	return output, True, dst_flag
+	return output, True, dst_flag, initialized_once
 
 def faceSwapVideo(img):
 	print("dst")
@@ -438,7 +443,7 @@ def main():
 				
 				# Swap faceswap
 				# if count > 6:
-				output, succ, found = faceSwap(src, dst, kalman, found, initialized_once)
+				output, succ, found, initialized_once = faceSwap(src, dst, kalman, found, initialized_once)
 				# else:
 				# 	count = count + 1
 				# 	continue
@@ -450,6 +455,8 @@ def main():
 				else:
 					img_array.append(frame)
 				count = count + 1
+				if count == 50:
+					break
 			else:
 				break
 
