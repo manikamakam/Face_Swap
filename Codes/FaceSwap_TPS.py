@@ -29,19 +29,17 @@ def face(image):
 		print("no face found")
 		return None, False
 
+	shape = []
 	for (i, rect) in enumerate(rects):
-		shape = predictor(gray, rect)
-		shape = shape_to_np(shape)
+		s = predictor(gray, rect)
+		s = shape_to_np(s)
+		shape.append(s)
 
 		# Uncomment the following to view facial features
-
-		for (x, y) in shape:
-			cv2.circle(img, (x, y), 1, (0, 0, 255), 2)
-
-			# cv2.imshow("Face", img)
-			# if cv2.waitKey(0) & 0xff == 27:
-			# 	cv2.destroyAllWindows()
+		# for (x, y) in shape:
+		# 	cv2.circle(img, (x, y), 1, (0, 0, 255), 2)
 	
+	shape = np.asarray(shape)
 	# cv2.imshow("Face", img)
 	# if cv2.waitKey(0) & 0xff == 27:
 	# 	cv2.destroyAllWindows()
@@ -156,10 +154,6 @@ def swap(x_const, y_const, P, src, dst, dst_copy, mask):
 	# return src_copy
 
 def faceSwap(src, dst, kalman, found, initialized_once):
-	if found:
-		# kalman predict
-		state = kalman.predict()		
-
 	# kalman predict
 	state = kalman.predict()
 	# print(state)
@@ -238,74 +232,149 @@ def faceSwap(src, dst, kalman, found, initialized_once):
 
 	return output, True, dst_flag, initialized_once
 
-def faceSwapVideo(img):
-	print("dst")
-	dst_pts, dst_flag = face(dst)
-	if (dst_flag == False):
-		return None, False
-	print("src")
-	src_pts, src_flag = face(src)
-	if (dst_flag == False or src_flag == False):
+def faceSwapVideo(img, kalman, found, initialized_once):
+	rects, flag = face(img)
+	if (flag == False):
 		return None, False
 
-	dst_copy = deepcopy(dst)
+	rnd = deepcopy(img)
+	src = deepcopy(img)
+	dst = deepcopy(img)
+	dst_copy = deepcopy(img)	
 
-	# generate mask
-	hullPoints = cv2.convexHull(dst_pts, returnPoints = True)
-	m = np.zeros_like(dst)
-	cv2.fillConvexPoly(m, hullPoints, (255,255,255))
-	mask = m[:, :, 0]
+	# kalman predict
+	state = kalman.predict()	
+
+	if len(rects) >= 2:
+		src_pts = rects[0]
+		dst_pts = rects[1]
+
+		for (x, y) in src_pts:
+			cv2.circle(img, (x, y), 1, (0, 0, 255), 2)
+
+		for (x, y) in dst_pts:
+			cv2.circle(img, (x, y), 1, (255, 0, 0), 2)
+
+		mes = []
+		if flag:
+			for pt in src_pts:
+				mes.append(pt[0])
+				mes.append(pt[1])
+			for pt in dst_pts:
+				mes.append(pt[0])
+				mes.append(pt[1])
+
+			mes = np.asarray(mes, np.float32)
+			mes = np.resize(mes, (272,1))
+			# print(mes.shape)
+
+			if initialized_once == False:
+				initialized_once = True
+				state[0:272] = mes
+				state[272:544] = np.reshape(np.asarray([0] * 272), (272,1))
+				kalman.statePost = state
+
+			else:
+				kalman.correct(mes)
+
+	else:
+		print("Cannot detect both faces")
+		kalman.statePost = state
+		src_pts = np.asarray([[0] * 2] * 68)
+		dst_pts = np.asarray([[0] * 2] * 68)
+
+		if initialized_once == False:
+			return img, True, flag, False
+
+	for i in range(len(src_pts)):
+		src_pts[i][0] = state[2*i]
+		src_pts[i][1] = state[2*i+1]
+
+	for i in range(len(dst_pts)):
+		dst_pts[i][0] = state[2*i + 136]
+		dst_pts[i][1] = state[2*i+1 + 136]
+
+	# swap first face
+	# generate mask for first swap
+	hullPoints1 = cv2.convexHull(dst_pts, returnPoints = True)
+	m1 = np.zeros_like(img)
+	cv2.fillConvexPoly(m1, hullPoints1, (255,255,255))
+	mask1 = m1[:, :, 0]
 
 	# generate P matrix
-	P = []
+	P1 = []
 	for (x, y) in dst_pts:
-		P.append([x, y, 1])
-	P = np.asarray(P)
+		P1.append([x, y, 1])
+	P1 = np.asarray(P1)
 
 	# generate X Y matrix
-	X = np.zeros(len(P)+3)
-	Y = np.zeros(len(P)+3)
+	X1 = np.zeros(len(P1)+3)
+	Y1 = np.zeros(len(P1)+3)
 	for i in range(len(src_pts)):
-		X[i] = src_pts[i][0]
-		Y[i] = src_pts[i][1]
+		X1[i] = src_pts[i][0]
+		Y1[i] = src_pts[i][1]
 
 	# parameters for the thin plate spines
-	x_const, y_const = getTPScoff(P, X, Y)
+	x_const1, y_const1 = getTPScoff(P1, X1, Y1)
 
 	# swap faces
-	output = swap(x_const, y_const, P, src, dst, dst_copy, mask)	
+	output1 = swap(x_const1, y_const1, P1, src, dst, dst_copy, mask1)
 
-	return output, True
+	# cv2.imshow("Output", output1)
+	# if cv2.waitKey(0) & 0xff == 27:
+	# 	cv2.destroyAllWindows()
+
+	# cv2.imshow("dst_copy", dst_copy)
+	# if cv2.waitKey(0) & 0xff == 27:
+	# 	cv2.destroyAllWindows()
+
+	dst1 = deepcopy(output1)
 
 
-# def main():
+	# swap second face
+	temp = src_pts
+	src_pts = dst_pts
+	dst_pts = temp
 
-# 	# load source image
-# 	src = cv2.imread('../sg1.jpg')
-# 	# resize src
-# 	scale_percent = 60 
-# 	width1 = int(src.shape[1] * scale_percent / 100)
-# 	height1 = int(src.shape[0] * scale_percent / 100)
-# 	dim1 = (width1, height1)
-# 	src = cv2.resize(src, dim1, interpolation = cv2.INTER_AREA)
+	# generate mask for first swap
+	hullPoints2= cv2.convexHull(dst_pts, returnPoints = True)
+	m2 = np.zeros_like(img)
+	cv2.fillConvexPoly(m2, hullPoints2, (255,255,255))
+	mask2 = m2[:, :, 0]
 
-# 	# load destination image
-# 	dst = cv2.imread('../a2.jpg')
-# 	# resize dst
-# 	scale_percent = 60 # percent of original size
-# 	width2 = int(dst.shape[1] * scale_percent / 100)
-# 	height2 = int(dst.shape[0] * scale_percent / 100)
-# 	dim2 = (width2, height2)
-# 	dst = cv2.resize(dst, dim2, interpolation = cv2.INTER_AREA)
+	# generate P matrix
+	P2 = []
+	for (x, y) in dst_pts:
+		P2.append([x, y, 1])
+	P2 = np.asarray(P2)
 
-# 	# Swap faceswap
-# 	output = faceSwap(src, dst)
+	# generate X Y matrix
+	X2 = np.zeros(len(P2)+3)
+	Y2 = np.zeros(len(P2)+3)
+	for i in range(len(src_pts)):
+		X2[i] = src_pts[i][0]
+		Y2[i] = src_pts[i][1]
 
-# 	cv2.imshow("Destination", output)
-# 	if cv2.waitKey(0) & 0xff == 27:
-# 		cv2.destroyAllWindows()
+	# parameters for the thin plate spines
+	x_const2, y_const2 = getTPScoff(P2, X2, Y2)
 
-# 	cv2.imwrite("../output.png", output)
+	# swap faces
+	output = swap(x_const2, y_const2, P2, src, dst1, output1, mask2)	
+
+	# cv2.imshow("Output", output)
+	# if cv2.waitKey(0) & 0xff == 27:
+	# 	cv2.destroyAllWindows()
+
+	# cv2.imshow("dst_copy", output1)
+	# if cv2.waitKey(0) & 0xff == 27:
+	# 	cv2.destroyAllWindows()
+
+	return output, True, flag, initialized_once
+
+	# else:
+	# 	print("Cannot detect both faces") 
+	# 	return img, False, flag, initialized_once
+
 
 def main():
 	Parser = argparse.ArgumentParser()
@@ -315,80 +384,76 @@ def main():
 	video = int(Args.video)
 	img_array = []
 
-	if video ==0:
+	if video == 0:
 		pass
-		# cap = cv2.VideoCapture('../TestSet_P2/Test2.mp4')
-		# if (cap.isOpened() == False):
-		# 	print("Unable to read camera feed")
-		# frame_width = int(cap.get(3))
-		# frame_height = int(cap.get(4))
-		# # scale_percent = 100  # percent of original size
-		# # frame_width = int(frame_width * scale_percent / 100)
-		# # frame_height = int(frame_height * scale_percent / 100)
-		# out = cv2.VideoWriter('Test2OutputTri.avi', cv2.VideoWriter_fourcc(*'DIVX'), 15, (frame_width, frame_height))
-		# while (True):
-		# 	ret, frame = cap.read()
-		# 	if ret == True:
-		# 		# scale_percent = 100 # percent of original size
-		# 		# width = int(frame.shape[1] * scale_percent / 100)
-		# 		# height = int(frame.shape[0] * scale_percent / 100)
-		# 		# dim = (width, height)
+		cap = cv2.VideoCapture('../TestSet_P2/Test2.mp4')
+		if (cap.isOpened() == False):
+			print("Unable to read camera feed")
+		frame_width = int(cap.get(3))
+		frame_height = int(cap.get(4))
+		# scale_percent = 100  # percent of original size
+		# frame_width = int(frame_width * scale_percent / 100)
+		# frame_height = int(frame_height * scale_percent / 100)
+		out = cv2.VideoWriter('Test2OutputTri.avi', cv2.VideoWriter_fourcc(*'DIVX'), 15, (frame_width, frame_height))
+		count = 1
+
+		# kalman filter
+		kalman = cv2.KalmanFilter(544, 272)
+
+		# generate transition matrix
+		t_mat = np.asarray([[0] * 544] * 544, np.float32)
+		for i in range(t_mat.shape[0]):
+			# for j in range(mes_mat.shape[1]):
+				# if i == j or j == i + 272:
+			t_mat[i][i] = 1.0
+			if i+272 < 544:
+				t_mat[i][i+272] = 1.0
+
+		# generate measurement matrix
+		m_mat = np.asarray([[0] * 544] * 272, np.float32)
+		for i in range(m_mat.shape[0]):
+			m_mat[i][i] = 1.0
+
+
+		kalman.measurementMatrix = m_mat
+		kalman.transitionMatrix = t_mat
+
+		# Process Covariance Matrix (Q)
+		kalman.processNoiseCov = np.identity(544, np.float32) * 1e-3
+		# Measurement Noise Covariance Matrix (R)
+		kalman.measurementNoiseCov = np.identity(272, np.float32) * 1e-1
+		kalman.errorCovPost = np.identity(544, np.float32)
+		found = False
+		initialized_once = False
+
+		while (True):
+			ret, frame = cap.read()
+			if ret == True:
+				# dst = frame
+				print(count)
+				# print(src.shape)
+				# print(dst.shape)
 				
-		# 		# dst_image = cv2.resize(frame, dim, interpolation = cv2.INTER_AREA)         #resized
-		# 		dst = deepcopy(dst_image)
+				# Swap faceswap
+				# if count > 6:
+				# output, succ, found, initialized_once = faceSwap(src, dst, kalman, found, initialized_once)
+				output, succ, found, initialized_once = faceSwapVideo(frame, kalman, found, initialized_once)
+				# else:
+				# 	count = count + 1
+				# 	continue
 
-		# 		dst = cv2.cvtColor(dst, cv2.COLOR_BGR2GRAY)
-		# 		detector = dlib.get_frontal_face_detector()
-		# 		predictor = dlib.shape_predictor('../shape_predictor_68_face_landmarks.dat')
-		# 		rects = detector(dst, 1)
-		# 		if len(rects) ==2:	
-		# 			tri_dst, tri_src,dst_pts =  triangulation(dst,rects,predictor,1) 
-		# 			tri_dst2, tri_src2,dst_pts2 =  triangulation(dst,rects,predictor,0) 
+				if succ == True:
+					# cv2.imshow("output", output)
+					# cv2.waitKey(1)
+					img_array.append(output)
+				else:
+					img_array.append(frame)
+				count = count + 1
+				if count == 50:
+					break
+			else:
+				break
 
-		# 			dst_copy = deepcopy(dst_image)    
-
-		# 			hullPoints = cv2.convexHull(dst_pts, returnPoints = True)
-		# 			mask = np.zeros_like(dst_image)
-		# 			cv2.fillConvexPoly(mask, hullPoints, (255,255,255))
-		# 			mask_b = mask[:, :, 0]
-
-		# 			x_dst, y_dst, x_src, y_src= get_points(tri_dst, tri_src)
-		# 			x_dst2, y_dst2, x_src2, y_src2= get_points(tri_dst2,tri_src2)
-
-		# 			b = dst_image[:,:,0]
-		# 			g = dst_image[:,:,1]
-		# 			r = dst_image[:,:,2]
-
-		# 			blue = interpolate.interp2d(range(dst_image.shape[1]), range(dst_image.shape[0]), b, kind='cubic')
-		# 			green = interpolate.interp2d(range(dst_image.shape[1]), range(dst_image.shape[0]), g, kind='cubic')
-		# 			red = interpolate.interp2d(range(dst_image.shape[1]), range(dst_image.shape[0]), r, kind='cubic')
-
-		# 			for i in range(len(x_src)):
-		# 				bnew = blue(x_src[i], y_src[i]) 
-		# 				gnew= green(x_src[i], y_src[i]) 
-		# 				rnew = red(x_src[i], y_src[i])
-		# 				dst_copy[y_dst[i],x_dst[i]] = (bnew,gnew,rnew)
-		# 			for i in range(len(x_src2)):
-		# 				bnew2 = blue(x_src2[i], y_src2[i]) 
-		# 				gnew2= green(x_src2[i], y_src2[i]) 
-		# 				rnew2 = red(x_src2[i], y_src2[i])
-		# 				dst_copy[y_dst2[i],x_dst2[i]] = (bnew2,gnew2,rnew2)
-
-		# 			hullPoints2 = cv2.convexHull(dst_pts2, returnPoints = True)
-		# 			mask2 = np.zeros_like(dst_image)
-		# 			cv2.fillConvexPoly(mask2, hullPoints2, (255,255,255))
-		# 			mask_b2 = mask2[:, :, 0]
-			
-		# 			br = cv2.boundingRect(mask_b)
-		# 			center = ((br[0] + int(br[2] / 2), br[1] + int(br[3] / 2)))
-		# 			output = cv2.seamlessClone(dst_copy, dst_image, mask_b, center, cv2.NORMAL_CLONE)
-				
-		# 			br2 = cv2.boundingRect(mask_b2)
-		# 			center2 = ((br2[0] + int(br2[2] / 2), br2[1] + int(br2[3] / 2)))
-		# 			output2 = cv2.seamlessClone(dst_copy, output, mask_b2, center2, cv2.NORMAL_CLONE)
-		# 			img_array.append(output2)
-		# 	else:
-		# 		break
 	else:
 		cap = cv2.VideoCapture('../TestSet_P2/Test1.mp4')
 		if (cap.isOpened() == False):
@@ -404,7 +469,7 @@ def main():
 		count = 1
 
 		# kalman filter
-		kalman = cv2.KalmanFilter(272,136)
+		kalman = cv2.KalmanFilter(272, 136)
 
 		# generate transition matrix
 		t_mat = np.asarray([[0] * 272] * 272, np.float32)
@@ -455,8 +520,6 @@ def main():
 				else:
 					img_array.append(frame)
 				count = count + 1
-				if count == 50:
-					break
 			else:
 				break
 
