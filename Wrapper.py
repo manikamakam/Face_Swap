@@ -1,5 +1,5 @@
 from Codes.FaceSwap_Tri import OneFaceInVideoAndImage, TwoFacesInVideo
-# from Codes import FaceSwap_Tri
+from PRNet.demo_texture import texture_editing
 import argparse
 import cv2
 
@@ -23,6 +23,8 @@ def main():
 		cap = cv2.VideoCapture('Data/Data2.mp4')
 		# print("xxxxxxxxxxxxxxxxxxxx")
 		TwoFacesInVideo(cap)
+
+	if video == 
 
 
 

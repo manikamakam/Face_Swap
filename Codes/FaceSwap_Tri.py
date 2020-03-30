@@ -209,7 +209,7 @@ def TwoFacesInVideo(cap):
 	frame_width = int(frame_width * scale_percent / 100)
 	frame_height = int(frame_height * scale_percent / 100)
 	# out = cv2.VideoWriter('../Data/Data2OutputTri.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 15, (frame_width, frame_height))
-	out = cv2.VideoWriter('/Data/Data2OutputTri.avi', cv2.VideoWriter_fourcc(*'DIVX'), 15, (frame_width, frame_height))
+	out = cv2.VideoWriter('Data/Data2OutputTri.avi', cv2.VideoWriter_fourcc(*'DIVX'), 15, (frame_width, frame_height))
 	c=0
 	while (True):
 		ret, frame = cap.read()
