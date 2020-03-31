@@ -29,15 +29,21 @@ def face(image):
 		print("no face found")
 		return None, False
 
-	shape = []
-	for (i, rect) in enumerate(rects):
-		s = predictor(gray, rect)
-		s = shape_to_np(s)
-		shape.append(s)
+	if len(rects) >= 2:
+		shape = []
+		for (i, rect) in enumerate(rects):
+			s = predictor(gray, rect)
+			s = shape_to_np(s)
+			shape.append(s)
 
-		# Uncomment the following to view facial features
-		# for (x, y) in shape:
-		# 	cv2.circle(img, (x, y), 1, (0, 0, 255), 2)
+	else:
+		for (i, rect) in enumerate(rects):
+			shape = predictor(gray, rect)
+			shape = shape_to_np(shape)
+
+			# Uncomment the following to view facial features
+			# for (x, y) in shape:
+			# 	cv2.circle(img, (x, y), 1, (0, 0, 255), 2)
 	
 	shape = np.asarray(shape)
 	# cv2.imshow("Face", img)
@@ -194,6 +200,7 @@ def faceSwap(src, dst, kalman, found, initialized_once):
 
 	else:
 		kalman.statePost = state
+		dst_pts = np.asarray([[0] * 2] * 68)
 
 		if initialized_once == False:
 			return dst, True, dst_flag, False
@@ -204,6 +211,8 @@ def faceSwap(src, dst, kalman, found, initialized_once):
 		dst_pts[i][1] = state[2*i+1]	
 
 	dst_copy = deepcopy(dst)
+
+	# print(dst_pts)
 
 	# generate mask
 	hullPoints = cv2.convexHull(dst_pts, returnPoints = True)
@@ -232,10 +241,28 @@ def faceSwap(src, dst, kalman, found, initialized_once):
 
 	return output, True, dst_flag, initialized_once
 
+def selectRects(rects1, rects2):
+	min1 = 10000
+	for (x, y) in rects1:
+		if x < min1:
+			min1 = x
+
+	min2 = 10000
+	for (x, y) in rects2:
+		if x < min2:
+			min2 = x
+
+	if min1 < min2:
+		return rects1, rects2
+
+	else:
+		return rects2, rects1		
+
+
 def faceSwapVideo(img, kalman, found, initialized_once):
 	rects, flag = face(img)
-	if (flag == False):
-		return None, False
+	# if (flag == False):
+	# 	return None, False
 
 	rnd = deepcopy(img)
 	src = deepcopy(img)
@@ -245,15 +272,19 @@ def faceSwapVideo(img, kalman, found, initialized_once):
 	# kalman predict
 	state = kalman.predict()	
 
-	if len(rects) >= 2:
-		src_pts = rects[0]
-		dst_pts = rects[1]
+	if flag and len(rects) >= 2:
+		src_pts, dst_pts = selectRects(rects[0], rects[1])
+		# src_pts = rects[0]
+		# dst_pts = rects[1]
 
-		for (x, y) in src_pts:
-			cv2.circle(img, (x, y), 1, (0, 0, 255), 2)
+		# for (x, y) in src_pts:
+		# 	cv2.circle(rnd, (x, y), 1, (0, 0, 255), 2)
 
-		for (x, y) in dst_pts:
-			cv2.circle(img, (x, y), 1, (255, 0, 0), 2)
+		# for (x, y) in dst_pts:
+		# 	cv2.circle(rnd, (x, y), 1, (255, 0, 0), 2)
+
+		# cv2.imshow("Rxd", rnd)
+		# cv2.waitKey(10)
 
 		mes = []
 		if flag:
@@ -394,7 +425,7 @@ def main():
 		# scale_percent = 100  # percent of original size
 		# frame_width = int(frame_width * scale_percent / 100)
 		# frame_height = int(frame_height * scale_percent / 100)
-		out = cv2.VideoWriter('Test2OutputTri.avi', cv2.VideoWriter_fourcc(*'DIVX'), 15, (frame_width, frame_height))
+		out = cv2.VideoWriter('Test2OutputTSP.avi', cv2.VideoWriter_fourcc(*'DIVX'), 15, (frame_width, frame_height))
 		count = 1
 
 		# kalman filter
@@ -419,9 +450,9 @@ def main():
 		kalman.transitionMatrix = t_mat
 
 		# Process Covariance Matrix (Q)
-		kalman.processNoiseCov = np.identity(544, np.float32) * 1e-3
+		kalman.processNoiseCov = np.identity(544, np.float32) * 1e-5
 		# Measurement Noise Covariance Matrix (R)
-		kalman.measurementNoiseCov = np.identity(272, np.float32) * 1e-1
+		kalman.measurementNoiseCov = np.identity(272, np.float32) * 1e-2
 		kalman.errorCovPost = np.identity(544, np.float32)
 		found = False
 		initialized_once = False
@@ -449,8 +480,8 @@ def main():
 				else:
 					img_array.append(frame)
 				count = count + 1
-				if count == 50:
-					break
+				# if count == 50:
+				# 	break
 			else:
 				break
 
@@ -464,7 +495,7 @@ def main():
 		# scale_percent = 100  # percent of original size
 		# frame_width = int(frame_width * scale_percent / 100)
 		# frame_height = int(frame_height * scale_percent / 100)
-		out = cv2.VideoWriter('Test1OutputTri.avi', cv2.VideoWriter_fourcc(*'DIVX'), 15, (frame_width, frame_height))
+		out = cv2.VideoWriter('Test1OutputTSP.avi', cv2.VideoWriter_fourcc(*'DIVX'), 15, (frame_width, frame_height))
 
 		count = 1
 
