@@ -18,7 +18,7 @@ def main():
 	method = int(Args.method)
 
 	if video ==0 and method == 1:
-		cap = cv2.VideoCapture('Data/Data1.mp4')
+		cap = cv2.VideoCapture('TestSet_P2/Test1.mp4')
 		OneFaceInVideoAndImage(cap)
 	if video ==1 and method == 1:
 		cap = cv2.VideoCapture('Data/Data2.mp4')
@@ -27,7 +27,7 @@ def main():
 	if video == 0 and method == 3:
 		Parser.add_argument('-i', '--image_path', default='PRNet/TestImages/frame.jpg', type=str,
 		                    help='path to input image')
-		Parser.add_argument('-r', '--ref_path', default='TestSet_P2/Scarlett.jpg', type=str, 
+		Parser.add_argument('-r', '--ref_path', default='TestSet_P2/Rambo.jpg', type=str, 
 		                    help='path to reference image(texture ref)')
 		Parser.add_argument('-o', '--output_path', default='PRNet/TestImages/output.jpg', type=str, 
 		                    help='path to save output')
@@ -40,11 +40,11 @@ def main():
 		os.environ['CUDA_VISIBLE_DEVICES'] = Parser.parse_args().gpu # GPU number, -1 for CPU
 		prn = PRN(is_dlib = True) 
 
-		cap = cv2.VideoCapture('TestSet_P2/Test3.mp4')
+		cap = cv2.VideoCapture('TestSet_P2/Test1.mp4')
 		if (cap.isOpened() == False):
 			print("Unable to read camera feed")
 
-		out = cv2.VideoWriter('Data/TestSetOutputs/Test3OutputPRNet.avi', cv2.VideoWriter_fourcc(*'DIVX'), 15, (int(cap.get(3)), int(cap.get(4))))
+		out = cv2.VideoWriter('Data/TestSetOutputs/Test1OutputPRNet.avi', cv2.VideoWriter_fourcc(*'DIVX'), 15, (int(cap.get(3)), int(cap.get(4))))
 		img_array =[]
 		while (True):
 			ret, frame = cap.read()
