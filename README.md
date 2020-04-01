@@ -19,7 +19,7 @@ Download the folder. Download the PRN trained model at [BaiduDrive](https://pan.
 
 To run the program, you have to give two command line arguments, video and method. If your video has only one face, give the argument 'video' as 0 and if it has more than one faces, give it as 1. You give 'method' as 1 for Triangulation output, 2 for TPS ouput and 3 for PRNet output.
 
-Go to the directory where Wrapper.py is present. For example if you want get the Triangulation output for a video with one face, run the following command 
+Go to the directory where Wrapper.py is present. For example if you want to get the Triangulation output for a video with one face, run the following command 
 
 ```
 python Wrapper.py --video 0 --method 1
