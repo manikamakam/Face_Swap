@@ -18,7 +18,7 @@ def main():
 	method = int(Args.method)
 
 	if video ==0 and method == 1:
-		cap = cv2.VideoCapture('TestSet_P2/Test1.mp4')
+		cap = cv2.VideoCapture('Data/Data1.mp4')
 		OneFaceInVideoAndImage(cap)
 	if video ==1 and method == 1:
 		cap = cv2.VideoCapture('Data/Data2.mp4')
@@ -27,7 +27,7 @@ def main():
 	if video == 0 and method == 3:
 		Parser.add_argument('-i', '--image_path', default='PRNet/TestImages/frame.jpg', type=str,
 		                    help='path to input image')
-		Parser.add_argument('-r', '--ref_path', default='TestSet_P2/Rambo.jpg', type=str, 
+		Parser.add_argument('-r', '--ref_path', default='Data/sg.jpg', type=str, 
 		                    help='path to reference image(texture ref)')
 		Parser.add_argument('-o', '--output_path', default='PRNet/TestImages/output.jpg', type=str, 
 		                    help='path to save output')
@@ -40,15 +40,28 @@ def main():
 		os.environ['CUDA_VISIBLE_DEVICES'] = Parser.parse_args().gpu # GPU number, -1 for CPU
 		prn = PRN(is_dlib = True) 
 
-		cap = cv2.VideoCapture('TestSet_P2/Test1.mp4')
+		cap = cv2.VideoCapture('Data/Data1.mp4')
 		if (cap.isOpened() == False):
 			print("Unable to read camera feed")
+		frame_width = int(cap.get(3))
+		frame_height = int(cap.get(4))
+		scale_percent = 70  # percent of original size
+		frame_width = int(frame_width * scale_percent / 100)
+		frame_height = int(frame_height * scale_percent / 100)
+		# out = cv2.VideoWriter('../Data/Data2OutputTri.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 15, (frame_width, frame_height))
+		out = cv2.VideoWriter('Data1OutputPRNet.avi', cv2.VideoWriter_fourcc(*'DIVX'), 15, (frame_width, frame_height))
 
-		out = cv2.VideoWriter('Data/TestSetOutputs/Test1OutputPRNet.avi', cv2.VideoWriter_fourcc(*'DIVX'), 15, (int(cap.get(3)), int(cap.get(4))))
 		img_array =[]
 		while (True):
 			ret, frame = cap.read()
 			if ret == True:
+				scale_percent = 70 # percent of original size
+				width = int(frame.shape[1] * scale_percent / 100)
+				height = int(frame.shape[0] * scale_percent / 100)
+				dim = (width, height)
+				
+				frame = cv2.resize(frame, dim, interpolation = cv2.INTER_AREA)         #resized
+
 				img = deepcopy(frame)
 
 				img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -88,15 +101,29 @@ def main():
 		os.environ['CUDA_VISIBLE_DEVICES'] = Parser.parse_args().gpu # GPU number, -1 for CPU
 		prn = PRN(is_dlib = True) 
 
-		cap = cv2.VideoCapture('TestSet_P2/Test2.mp4')
+		cap = cv2.VideoCapture('Data/Data2.mp4')
 		if (cap.isOpened() == False):
 			print("Unable to read camera feed")
-
-		out = cv2.VideoWriter('Data/TestSetOutputs/Test2OutputPRNet.avi', cv2.VideoWriter_fourcc(*'DIVX'), 15, (int(cap.get(3)), int(cap.get(4))))
+		frame_width = int(cap.get(3))
+		frame_height = int(cap.get(4))
+		scale_percent = 60  # percent of original size
+		frame_width = int(frame_width * scale_percent / 100)
+		frame_height = int(frame_height * scale_percent / 100)
+		# out = cv2.VideoWriter('../Data/Data2OutputTri.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 15, (frame_width, frame_height))
+		out = cv2.VideoWriter('Data2OutputPRNet.avi', cv2.VideoWriter_fourcc(*'DIVX'), 15, (frame_width, frame_height))
+		count = 0
 		img_array =[]
 		while (True):
 			ret, frame = cap.read()
 			if ret == True:
+				scale_percent = 60 # percent of original size
+				width = int(frame.shape[1] * scale_percent / 100)
+				height = int(frame.shape[0] * scale_percent / 100)
+				dim = (width, height)
+				
+				frame = cv2.resize(frame, dim, interpolation = cv2.INTER_AREA)         #resized
+
+
 				img = deepcopy(frame)
 				frame2 = deepcopy(frame)
 
@@ -104,7 +131,6 @@ def main():
 				detector = dlib.get_frontal_face_detector()
 				predictor = dlib.shape_predictor('shape_predictor_68_face_landmarks.dat')
 				rects = detector(img, 1)
-
 				if len(rects) >=2:	
 					dst_pts = predictor(img, rects[0])
 					dst_pts = shape_to_np(dst_pts)
@@ -123,25 +149,42 @@ def main():
 					cv2.imwrite('PRNet/TestImages/frame2.jpg', frame2) 
 					args.image_path = 'PRNet/TestImages/frame.jpg'
 					args.ref_path = 'PRNet/TestImages/frame2.jpg'
+					try:
 
-					texture_editing(prn, args)
+						texture_editing(prn, args)
+					
+					except:
+						out.release()
+						cap.release()
+
 					res1 = cv2.imread('PRNet/TestImages/output.jpg')
 
 					args.image_path = 'PRNet/TestImages/frame2.jpg'
 					args.ref_path = 'PRNet/TestImages/frame.jpg'
-					texture_editing(prn, args)
+					try:
+						texture_editing(prn, args)
+					except:
+						out.release()
+						cap.release()
+
 
 					res2 = cv2.imread('PRNet/TestImages/output.jpg')
 					res1[:,avg:w] = res2[:,avg:w]
 					cv2.imwrite('PRNet/TestImages/res.jpg', res1)
-					img_array.append(res1)
+					out.write(res1)
+					print(count)
+					count =count+1
+					# img_array.append(res1)
 				else:
-					img_array.append(frame)
+					# img_array.append(frame)
+					out.write(frame)
+					print(count)
+					count =count+1
 			else:
 				break
-		print(len(img_array))
-		for i in range(len(img_array)):
-			out.write(img_array[i])
+		# print(len(img_array))
+		# for i in range(len(img_array)):
+		# 	out.write(img_array[i])
 		out.release()
 		cap.release()
 
