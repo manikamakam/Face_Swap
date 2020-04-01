@@ -15,10 +15,11 @@ Outputs obtained from all the methods are compared.
 
 ## Instructions to run
 
-Download the folder. To run the program, you have to give two command line arguments, video and method. If your video has only one face, give the argument 'video' as 0 and if it has more than one faces, give it as 1. You give 'method' as 1 for Triangulation output, 2 for TPS ouput and 3 for PRNet output.
+Download the folder. Download the PRN trained model at [BaiduDrive](https://pan.baidu.com/s/10vuV7m00OHLcsihaC-Adsw) or [GoogleDrive](https://drive.google.com/file/d/1UoE-XuW1SDLUjZmJPkIZ1MLxvQFgmTFH/view?usp=sharing), and put it into `PRNet/Data/net-data`
 
-Download the folder. Go to the directory where Wrapper.py is present.
-For example if you want get the Triangulation output for a video with one face, run the following command 
+To run the program, you have to give two command line arguments, video and method. If your video has only one face, give the argument 'video' as 0 and if it has more than one faces, give it as 1. You give 'method' as 1 for Triangulation output, 2 for TPS ouput and 3 for PRNet output.
+
+Go to the directory where Wrapper.py is present. For example if you want get the Triangulation output for a video with one face, run the following command 
 
 ```
 python Wrapper.py --video 0 --method 1
