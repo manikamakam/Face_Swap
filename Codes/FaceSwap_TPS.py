@@ -22,7 +22,7 @@ def face(image):
 
 	# get facial features using dlib
 	detector = dlib.get_frontal_face_detector()
-	predictor = dlib.shape_predictor('../shape_predictor_68_face_landmarks.dat')
+	predictor = dlib.shape_predictor('shape_predictor_68_face_landmarks.dat')
 	rects = detector(gray, 1)
 
 	if (len(rects) == 0):
@@ -79,14 +79,14 @@ def getTPScoff(P, X, Y):
 
 def swap(x_const, y_const, P, src, dst, dst_copy, mask):
 
-	random = np.zeros_like(dst)
-	for i in range(dst.shape[0]):
-		for j in range(dst.shape[1]):
-			if (mask[i][j] == 255):
-				random[i][j] = dst[i][j]
+	# random = np.zeros_like(dst)
+	# for i in range(dst.shape[0]):
+	# 	for j in range(dst.shape[1]):
+	# 		if (mask[i][j] == 255):
+	# 			random[i][j] = dst[i][j]
 
-	cv2.imshow("Random", random)
-	cv2.waitKey(10)
+	# cv2.imshow("Random", random)
+	# cv2.waitKey(10)
 	# if cv2.waitKey(0) & 0xff == 27:
 	# 	cv2.destroyAllWindows()
 
@@ -164,16 +164,9 @@ def faceSwap(src, dst, kalman, found, initialized_once):
 	state = kalman.predict()
 	# print(state)
 
-	# er = 0
-	# for i in range(len(dst_pts)):
-	# 	er = er + abs(dst_pts[i][0] - state[2*i])
-	# 	er = er + abs(dst_pts[i][1] - state[2*i+1])
-
-	# print(er/len(dst_pts))
-
 	dst_pts, dst_flag = face(dst)
 	# if (dst_flag == False):
-	# 	return None, False
+	# 	return dst, True, dst_flag, False
 	src_pts, src_flag = face(src)
 	if (src_flag == False):
 		print("No face found in source?? What is happening?? ")
@@ -309,7 +302,7 @@ def faceSwapVideo(img, kalman, found, initialized_once):
 				kalman.correct(mes)
 
 	else:
-		print("Cannot detect both faces")
+		# print("Cannot detect both faces")
 		kalman.statePost = state
 		src_pts = np.asarray([[0] * 2] * 68)
 		dst_pts = np.asarray([[0] * 2] * 68)
@@ -402,9 +395,144 @@ def faceSwapVideo(img, kalman, found, initialized_once):
 
 	return output, True, flag, initialized_once
 
-	# else:
-	# 	print("Cannot detect both faces") 
-	# 	return img, False, flag, initialized_once
+def TPSTwoFaces(cap):
+	# cap = cv2.VideoCapture('../TestSet_P2/Test2.mp4')
+	img_array = []
+	if (cap.isOpened() == False):
+		print("Unable to read camera feed")
+	frame_width = int(cap.get(3))
+	frame_height = int(cap.get(4))
+	scale_percent = 100  # percent of original size
+	frame_width = int(frame_width * scale_percent / 100)
+	frame_height = int(frame_height * scale_percent / 100)
+	out = cv2.VideoWriter('Data2OutputTSP.avi', cv2.VideoWriter_fourcc(*'DIVX'), 15, (frame_width, frame_height))
+	count = 1
+
+	# kalman filter
+	kalman = cv2.KalmanFilter(544, 272)
+
+	# generate transition matrix
+	t_mat = np.asarray([[0] * 544] * 544, np.float32)
+	for i in range(t_mat.shape[0]):
+		t_mat[i][i] = 1.0
+		if i+272 < 544:
+			t_mat[i][i+272] = 1.0
+
+	# generate measurement matrix
+	m_mat = np.asarray([[0] * 544] * 272, np.float32)
+	for i in range(m_mat.shape[0]):
+		m_mat[i][i] = 1.0
+
+
+	kalman.measurementMatrix = m_mat
+	kalman.transitionMatrix = t_mat
+
+	# Process Covariance Matrix (Q)
+	kalman.processNoiseCov = np.identity(544, np.float32) * 1e-5
+	# Measurement Noise Covariance Matrix (R)
+	kalman.measurementNoiseCov = np.identity(272, np.float32) * 1e-2
+	kalman.errorCovPost = np.identity(544, np.float32)
+	found = False
+	initialized_once = False
+
+	while (True):
+		ret, frame = cap.read()
+		if ret == True:
+			# reshape if needed
+			scale_percent = 100 # percent of original size
+			width = int(frame.shape[1] * scale_percent / 100)
+			height = int(frame.shape[0] * scale_percent / 100)
+			dim = (width, height)
+			frame = cv2.resize(frame, dim, interpolation = cv2.INTER_AREA)
+			print(count)
+			
+			output, succ, found, initialized_once = faceSwapVideo(frame, kalman, found, initialized_once)
+
+			if succ == True:
+				img_array.append(output)
+			else:
+				img_array.append(frame)
+			count = count + 1
+		else:
+			break
+
+	for i in range(len(img_array)):
+		out.write(img_array[i])
+	out.release()
+	cap.release()
+
+def TPSOneFace(cap):
+	img_array = []
+	# cap = cv2.VideoCapture('../TestSet_P2/Test1.mp4')
+	if (cap.isOpened() == False):
+		print("Unable to read camera feed")
+	frame_width = int(cap.get(3))
+	frame_height = int(cap.get(4))
+	src = cv2.imread('TestSet_P2/sg1.jpg')
+	scale_percent = 100  # percent of original size
+	frame_width = int(frame_width * scale_percent / 100)
+	frame_height = int(frame_height * scale_percent / 100)
+	out = cv2.VideoWriter('Data1OutputTSP.avi', cv2.VideoWriter_fourcc(*'DIVX'), 15, (frame_width, frame_height))
+
+	count = 1
+
+	# kalman filter
+	kalman = cv2.KalmanFilter(272, 136)
+
+	# generate transition matrix
+	t_mat = np.asarray([[0] * 272] * 272, np.float32)
+	for i in range(t_mat.shape[0]):
+		t_mat[i][i] = 1.0
+		if i+136 < 272:
+			t_mat[i][i+136] = 1.0
+
+	# generate measurement matrix
+	m_mat = np.asarray([[0] * 272] * 136, np.float32)
+	for i in range(m_mat.shape[0]):
+		m_mat[i][i] = 1.0
+
+
+	kalman.measurementMatrix = m_mat
+	kalman.transitionMatrix = t_mat
+
+	# Process Covariance Matrix (Q)
+	kalman.processNoiseCov = np.identity(272, np.float32) * 1e-3
+	# Measurement Noise Covariance Matrix (R)
+	kalman.measurementNoiseCov = np.identity(136, np.float32) * 1e-1
+	kalman.errorCovPost = np.identity(272, np.float32)
+	found = False
+	initialized_once = False
+
+	while (True):
+		ret, frame = cap.read()
+		if ret == True:
+			# reshape if needed
+			scale_percent = 100 # percent of original size
+			width = int(frame.shape[1] * scale_percent / 100)
+			height = int(frame.shape[0] * scale_percent / 100)
+			dim = (width, height)
+			frame = cv2.resize(frame, dim, interpolation = cv2.INTER_AREA)   
+
+			# load destination image
+			dst = frame
+			print(count)
+			
+			# Swap faceswap
+			output, succ, found, initialized_once = faceSwap(src, dst, kalman, found, initialized_once)
+
+			if succ == True:
+				img_array.append(output)
+			else:
+				img_array.append(frame)
+			count = count + 1
+		else:
+			break
+
+	# print(len(img_array))		
+	for i in range(len(img_array)):
+		out.write(img_array[i])
+	out.release()
+	cap.release()
 
 
 def main():
@@ -416,7 +544,6 @@ def main():
 	img_array = []
 
 	if video == 0:
-		pass
 		cap = cv2.VideoCapture('../TestSet_P2/Test2.mp4')
 		if (cap.isOpened() == False):
 			print("Unable to read camera feed")
@@ -554,7 +681,7 @@ def main():
 			else:
 				break
 
-	print(len(img_array))		
+	# print(len(img_array))		
 	for i in range(len(img_array)):
 		out.write(img_array[i])
 	out.release()

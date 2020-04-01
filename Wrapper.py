@@ -1,6 +1,7 @@
 from Codes.FaceSwap_Tri import OneFaceInVideoAndImage, TwoFacesInVideo,shape_to_np
 from PRNet.demo_texture import texture_editing
 from PRNet.api import PRN
+from Codes.FaceSwap_TPS import TPSOneFace, TPSTwoFaces
 import argparse
 import cv2
 import os
@@ -23,6 +24,13 @@ def main():
 	if video ==1 and method == 1:
 		cap = cv2.VideoCapture('Data/Data2.mp4')
 		TwoFacesInVideo(cap)
+
+	if video ==0 and method == 2:
+		cap = cv2.VideoCapture('Data/Data1.mp4')
+		TPSOneFace(cap)
+	if video ==1 and method == 2:
+		cap = cv2.VideoCapture('Data/Data2.mp4')
+		TPSTwoFaces(cap)
 
 	if video == 0 and method == 3:
 		Parser.add_argument('-i', '--image_path', default='PRNet/TestImages/frame.jpg', type=str,

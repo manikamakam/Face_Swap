@@ -252,9 +252,11 @@ def TwoFacesInVideo(cap):
 	found = False
 	initialized_once = False
 	undetected_frames = 0
+	c = 1
 	while (True):
 		ret, frame = cap.read()
 		if ret == True:
+			print(c)
 			scale_percent = 100 # percent of original size
 			width = int(frame.shape[1] * scale_percent / 100)
 			height = int(frame.shape[0] * scale_percent / 100)
@@ -359,19 +361,19 @@ def TwoFacesInVideo(cap):
 			cv2.fillConvexPoly(mask2, hullPoints2, (255,255,255))
 			mask_b2 = mask2[:, :, 0]
 
-			random = np.zeros_like(frame)
-			for i in range(dst.shape[0]):
-				for j in range(dst.shape[1]):
-					if (mask_b[i][j] == 255):
-						random[i][j] = frame[i][j]
-			for i in range(dst.shape[0]):
-				for j in range(dst.shape[1]):
-					if (mask_b2[i][j] == 255):
-						random[i][j] = frame[i][j]
+			# random = np.zeros_like(frame)
+			# for i in range(dst.shape[0]):
+			# 	for j in range(dst.shape[1]):
+			# 		if (mask_b[i][j] == 255):
+			# 			random[i][j] = frame[i][j]
+			# for i in range(dst.shape[0]):
+			# 	for j in range(dst.shape[1]):
+			# 		if (mask_b2[i][j] == 255):
+			# 			random[i][j] = frame[i][j]
 
-			cv2.imshow("Random", random)
-			cv2.waitKey(10)
-	
+			# cv2.imshow("Random", random)
+			# cv2.waitKey(10)
+		
 			br = cv2.boundingRect(mask_b)
 			center = ((br[0] + int(br[2] / 2), br[1] + int(br[3] / 2)))
 			output = cv2.seamlessClone(dst_copy, dst_image, mask_b, center, cv2.NORMAL_CLONE)
@@ -381,6 +383,7 @@ def TwoFacesInVideo(cap):
 			output2 = cv2.seamlessClone(dst_copy, output, mask_b2, center2, cv2.NORMAL_CLONE)
 
 			img_array.append(output2)
+			c = c + 1
 		else:
 			break
 			
@@ -428,6 +431,7 @@ def OneFaceInVideoAndImage(cap):
 	kalman.errorCovPost = np.identity(272, np.float32)
 	found = False
 	initialized_once = False
+	c = 1
 
 
 	while (True):
@@ -451,6 +455,7 @@ def OneFaceInVideoAndImage(cap):
 			state = kalman.predict()
 
 			if len(rects) > 0:
+				print(c)
 				shape = predictor(dst, rects[0])
 				shape = shape_to_np(shape)
 				mes = []	
@@ -479,18 +484,18 @@ def OneFaceInVideoAndImage(cap):
 				if initialized_once == False:
 					img_array.append(frame)
 					continue
-					# return dst, True, dst_flag, False
-					# dst_pts = np.asarray([[0] * 2] * 68)
+					return dst, True, dst_flag, False
+					dst_pts = np.asarray([[0] * 2] * 68)
 
 			for i in range(len(dst_pts)):
 				dst_pts[i][0] = state[2*i]
 				dst_pts[i][1] = state[2*i+1]
-			
+				
 			dst, tri_dst, indices=triangulation_dst(dst,dst_pts)	 
 			dst_copy = deepcopy(dst_image)                                                                 
 
 			# src_image = cv2.imread('Data/Scarlett.jpg')
-			src_image = cv2.imread('TestSet_P2/Scarlett.jpg')
+			src_image = cv2.imread('TestSet_P2/sg1.jpg')
 
 			scale_percent2 = 100 # percent of original size
 			width2 = int(src_image.shape[1] * scale_percent2 / 100)
@@ -526,6 +531,8 @@ def OneFaceInVideoAndImage(cap):
 			center = ((br[0] + int(br[2] / 2), br[1] + int(br[3] / 2)))
 			output = cv2.seamlessClone(dst_copy, dst_image, mask_b, center, cv2.NORMAL_CLONE)
 			img_array.append(output)
+			c = c + 1
+					
 		else:
 			break
 	# print(len(img_array))
